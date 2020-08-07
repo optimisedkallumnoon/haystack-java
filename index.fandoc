@@ -1,0 +1,146 @@
+**************************************************************************
+** title:      Haystack Java Toolkit
+** author:     Brian Frank
+** created:    11 Nov 10
+** copyright:  Copyright (c) 2011, Brian Frank
+**************************************************************************
+
+Overview [#overview]
+********************
+
+[Project Haystack]`http://project-haystack.org/` defines a tagging model
+and REST API for sensor systems such as HVAC, lighting, and energy equipment.
+This toolkit provides a simple, small Java API for working with haystack:
+
+ - **Modeling**: APIs for modeling tags values and grids
+ - **Formats**: encoding and decoding of grids using Zinc, JSON, CSV, etc
+ - **Filter**: Haystack query language AST and parser
+ - **Client**: full client side implementation of HTTP REST API
+ - **Server**: servlet and server side implementation of HTTP REST API
+   with hooks to glue to specific database
+
+All code is written to work with Java 1.4 and J2ME (no use of newer Java
+features such as generics).  This code is all open sourced under the Academic
+Free License version 3.0 (same license used as Project Haystack).
+
+HVal APIs [#vals]
+*******************
+The 'HVal' class is the common base class for classes used to model
+the scalar values of [tag kinds]`http://project-haystack.org/doc/TagModel#tagKinds`:
+
+ - 'HMarker': singleton value for marker tag
+ - 'HBool': true/false boolean values
+ - 'HNum': number as 64-bit double with optional unit name
+ - 'HStr': wraps java.lang.String
+ - 'HUri': models a URI as a string value
+ - 'HRef': reference with identifier string and optional display string
+ - 'HDate': date as year, month, day
+ - 'HTime': time as hour, minute, second, milliseconds
+ - 'HDateTime': date time with timezone offset and timezone name
+ - 'HBin': MIME typed binary blob
+ - 'HCoord': geographic coordinate as latitude and longitute
+
+All 'HVal' classes are immutable, once created they cannot be modified.
+
+HDict API [#dict]
+*******************
+The 'HDict' class models a set of tag name/value pairs.  The tag names are modeled
+as 'String' and values as 'HVal'.  The 'HDict' class is immutable, once an instance
+is created it cannot be modified.  Use 'HDictBuilder' to build an immutable
+'HDict' instance:
+
+  // using builder API
+  HDict tags = new HDictBuilder()
+                     .add("dis", "Building A")
+                     .add("area", 13500)
+                     .add("built", HDate.make(1970,6,3))
+                     .add("site")
+                     .toDict();
+
+Once an instance is created, you can query for the tags using the
+'HDict.get' method or iterate with 'HDict.iterator' method:
+
+  tags.get("dis")     // evalutes to HStr("Building A")
+  tags.get("site")    // evaluates to HMarker.VAL
+  tags.has("site")    // evaluates to true
+
+  // iterate all the name/value pairs
+  for (Iterator it = tags.iterator(); it.hasNext(); )
+  {
+    Map.Entry e = (Map.Entry)it.next();
+    String name = (String)e.getKey();
+    HVal val    = (HVal)e.getValue();
+  }
+
+HGrid API [#grid]
+*****************
+The 'HGrid' class models a [Haystack grid]`http://project-haystack.org/doc/Grids`.
+A grid is composed
+  - metadata tags modeled via 'HDict'
+  - a set of one or more named columns modeld via 'HCol'
+  - zero or more rows modeled by the 'HRow' class which subclasses 'HDict'
+    so you can use it anywhere a 'HDict' is expected.
+
+The 'HGrid' class is immutable, once constructed it cannot be modified.
+Use the 'HGridBuilder' class to construct a grid:
+
+    HGridBuilder b = new HGridBuilder();
+    b.addCol("id");
+    b.addCol("dis");
+    b.addCol("area");
+    b.addRow(new HVal[] { HRef.make("a"), HStr.make("Alpha"), HNum.make(1200) });
+    b.addRow(new HVal[] { HRef.make("b"), HStr.make("Beta"),  null });
+    HGrid grid = b.toGrid();
+
+Helper methods on 'HGridBuilder' can also be used to construct grids from a 'HDict'
+or 'HDict[]'.
+
+The following snippets illustrate accessing grid structure:
+
+  // check grid metadata for tag
+  grid.meta().has("err");
+
+  // lookup column by name (checked)
+  HCol col = grid.col("id");
+
+  // iterate columns
+  for (int i=0; i<grid.numCols(); ++i)
+  {
+    HCol col = grid.col(i);
+  }
+
+  // iterate rows
+  for (int i=0; i<grid.numRows(); ++i)
+  {
+    HRow row = grid.row(i);
+  }
+
+HClient API [#client]
+*********************
+The 'HClient' class is used to communicate over HTTP to a Haystack server
+via the [REST API]`http://project-haystack.org/doc/Rest`.
+
+  // open new client
+  HClient client = HClient.open("http://localhost/api/demo", "user", "pass");
+
+  // query server about info
+  client.about();
+
+  // read all records that have "site" tag
+  HGrid sites = client.readAll("site");
+
+HServer API [#server]
+*********************
+The 'HServer' class provides infrastructure to add server side
+support for the [Haystack REST API]`http://project-haystack.org/doc/Rest`.
+
+The 'HServlet' class is designed to plug into a Java servlet namespace.
+It handles the basic URI routing, decoding, and error handling.
+
+The 'HStdOps' class defines all the [standard operations]`http://project-haystack.org/doc/Ops`
+specified by Haystack.  You can also create your own operations by
+subclassing 'HOp'.
+
+The 'HServlet' class defines the hooks for gluing the toolkit into
+your native database.
+
