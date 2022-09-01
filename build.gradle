@@ -5,6 +5,7 @@
 // History:
 //   10 Jun 2016  Matthew Giannini  Creation
 //
+
 plugins {
     id 'java-library'
     id 'maven-publish'
@@ -15,15 +16,10 @@ plugins {
 
 group = "org.projecthaystack"
 version = "3.0.5"
-dependencies {
-    // https://mvnrepository.com/artifact/mysql/mysql-connector-java
-    compile group: 'mysql', name: 'mysql-connector-java', version: '8.0.21'
-
-}
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_7
-    targetCompatibility = JavaVersion.VERSION_1_7
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 
     withJavadocJar()
     withSourcesJar()
@@ -35,6 +31,8 @@ repositories {
 }
 
 dependencies {
+    implementation group: 'com.microsoft.sqlserver', name: 'mssql-jdbc', version: '6.1.0.jre7'
+    implementation 'org.jetbrains:annotations:20.1.0'
     providedCompile 'javax.servlet:javax.servlet-api:3.1.0'
 
     // Use TestNG framework, also requires calling test.useTestNG() below
@@ -61,37 +59,28 @@ test {
 // Stupid war plugin disable jar for some reason. Force jar creation
 assemble.dependsOn(jar)
 
-publishing {
-    publications {
-        create("haystack-java", MavenPublication) {
-            artifactId = 'haystack-java'
 
-            from components.java
-        }
-    }
-}
 
 String findProperty(String s) { project.findProperty(s) }
 
-bintray {
-    user = findProperty("bintrayUser")
-    key  = findProperty("bintrayApiKey")
-    publish = true
-    setPublications("haystack-java")
-    pkg {
-        repo    = 'maven'
-        name    = 'haystack-java'
-        userOrg = 'skyfoundry'
-        vcsUrl  = 'https://github.com/skyfoundry/haystack-java'
-    }
-}
+
 
 javadoc {
     if(JavaVersion.current().isJava9Compatible()) {
         options.addBooleanOption('html5', true)
     }
 }
+jar {
+    manifest {
+        attributes( "Main-Class": "org.projecthaystack.ob.Main",
+                'Class-Path': configurations.runtimeClasspath.files.collect { it.getName() }.join(' '))
+    }
 
+    from {
+        exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
 //gradle.taskGraph.whenReady {taskGraph ->
 //    if (!taskGraph.hasTask(release)) version += "-SNAPSHOT"
 //}

@@ -137,7 +137,7 @@ public class SqlDB {
         return points;
     }
 
-    public static 
+
 
     public static void insertHistories(int pointId,ArrayList<String> histories){
 
